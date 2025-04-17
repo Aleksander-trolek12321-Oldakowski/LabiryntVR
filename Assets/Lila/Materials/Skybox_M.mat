@@ -22,9 +22,13 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Skybox_M
   m_Shader: {fileID: 4800000, guid: 933532a4fcc9baf4fa0491de14d08ed7, type: 3}
-  m_Parent: {fileID: 2100000, guid: f6f419b91eace024d9a7d5a195083d21, type: 2}
+  m_Parent: {fileID: 2100000, guid: 1c4efa53527e5f04c8b380abe2e1b0c0, type: 2}
   m_ModifiedSerializedProperties: 2
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _METALLICSPECGLOSSMAP
+  - _NORMALMAP
+  - _OCCLUSIONMAP
+  - _PARALLAXMAP
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
