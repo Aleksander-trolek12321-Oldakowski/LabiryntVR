@@ -5,11 +5,12 @@ TagManager:
   serializedVersion: 3
   tags:
   - Anchor
+  - Wall
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - player
   - Water
   - UI
   - 

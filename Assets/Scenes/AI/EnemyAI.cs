@@ -1,142 +1,207 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 public class EnemyAI : MonoBehaviour
 {
-    public Transform[] patrolPoints;
-    public Transform player;
-    public float detectionRange = 10f;
-    public float chargeCooldown = 5f;
-    public float chargeForce = 30f;
+    public float detectionRange = 15f;
+    public float dashForce = 40f;
+    public float dashDuration = 1.5f;
     public float stunDuration = 3f;
-    public float chargeChance = 0.2f;
-    public float killDistance = 1.5f; 
+    public float killDistance = 1.5f;
+    public float wanderRadius = 20f;
+    public float restDuration = 5f;
+    public float chaseTimeLimit = 30f;
+    public float seekAfterSeconds = 2f;
+
+    public Transform player;
 
     private NavMeshAgent agent;
-    private int currentPatrolIndex;
-    private bool chasing = false;
-    private bool charging = false;
-    private bool stunned = false;
-    private float chargeTimer = 1f;
     private Rigidbody rb;
+
+    private enum State { Wandering, Seeking, Chasing, Dashing, Stunned, Resting }
+    private State currentState = State.Wandering;
+
+    private float chaseTimer;
+    private float timeSinceLastSeen;
+    private Vector3 dashTarget;
+    private float dashTimer;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         rb = GetComponent<Rigidbody>();
-        currentPatrolIndex = 0;
-        GoToNextPatrolPoint();
+        EnterState(State.Wandering);
     }
 
     void Update()
     {
-        if (stunned) return;
+        timeSinceLastSeen += Time.deltaTime;
 
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-        chargeTimer += Time.deltaTime;
-
-        if (charging)
+        switch (currentState)
         {
-            if (distanceToPlayer < killDistance)
-            {
-                KillPlayer();
-            }
-            return;
+            case State.Wandering:   UpdateWander();   break;
+            case State.Seeking:     UpdateSeek();     break;
+            case State.Chasing:     UpdateChase();    break;
+            case State.Dashing:     UpdateDash();     break;
         }
 
-        if (distanceToPlayer < detectionRange)
+        if (currentState == State.Wandering && timeSinceLastSeen >= seekAfterSeconds)
         {
-            chasing = true;
-
-            if (distanceToPlayer < killDistance)
-            {
-                KillPlayer();
-                return;
-            }
-
-            if (chargeTimer >= chargeCooldown && Random.value < chargeChance)
-            {
-                StartCoroutine(Charge());
-                return;
-            }
-
-            agent.SetDestination(player.position);
-        }
-        else
-        {
-            chasing = false;
-            Patrol();
+            EnterState(State.Seeking);
         }
     }
 
-    void Patrol()
+    // --- STATE MACHINE HELPERS ---
+
+    void EnterState(State newState)
+    {
+        currentState = newState;
+        Debug.Log($"State → {newState}");
+        agent.isStopped = true;
+        rb.linearVelocity = Vector3.zero;
+
+        switch (newState)
+        {
+            case State.Wandering:
+                agent.isStopped = false;
+                GoToRandomPoint();
+                break;
+
+            case State.Seeking:
+                if (timeSinceLastSeen < Mathf.Infinity)
+                {
+                    agent.isStopped = false;
+                    agent.SetDestination(player.position);
+                }
+                break;
+
+            case State.Chasing:
+                chaseTimer = 0f;
+                Invoke(nameof(StartDash), 2f);
+                agent.isStopped = false;
+                agent.SetDestination(player.position);
+                break;
+
+            case State.Dashing:
+                dashTimer = 0f;
+                dashTarget = player.position;
+                Vector3 dashDirection = (dashTarget - transform.position).normalized;
+                rb.linearVelocity = dashDirection * dashForce;
+                agent.isStopped = true;
+                break;
+
+            case State.Resting:
+                StartCoroutine(RestCoroutine());
+                break;
+
+            case State.Stunned:
+                StartCoroutine(StunCoroutine());
+                break;
+        }
+    }
+
+    void TransitionToWanderIfLost()
+    {
+        if (!PlayerInSight() && chaseTimer >= chaseTimeLimit)
+            EnterState(State.Resting);
+    }
+
+    // --- STATE UPDATES ---
+
+    void UpdateWander()
     {
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
-            GoToNextPatrolPoint();
+            GoToRandomPoint();
+
+        if (PlayerInSight())
+            EnterState(State.Chasing);
     }
 
-    void GoToNextPatrolPoint()
+    void UpdateSeek()
     {
-        if (patrolPoints.Length == 0) return;
+        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+            EnterState(State.Wandering);
 
-        agent.destination = patrolPoints[currentPatrolIndex].position;
-        currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
+        if (PlayerInSight())
+            EnterState(State.Chasing);
     }
 
-    System.Collections.IEnumerator Charge()
+    void UpdateChase()
     {
-        charging = true;
-        chargeTimer = 0f;
-        agent.enabled = false;
+        chaseTimer += Time.deltaTime;
+        agent.SetDestination(player.position);
 
-        Vector3 direction = (player.position - transform.position).normalized;
-        rb.AddForce(direction * chargeForce, ForceMode.VelocityChange);
+        if (!PlayerInSight())
+            TransitionToWanderIfLost();
+    }
 
-        yield return new WaitForSeconds(1.5f);
+    void UpdateDash()
+    {
+        dashTimer += Time.deltaTime;
 
-        if (!stunned)
+        if (dashTimer >= dashDuration)
         {
             rb.linearVelocity = Vector3.zero;
-            charging = false;
-            agent.enabled = true;
+            EnterState(State.Chasing);
         }
+    }
+
+    void StartDash()
+    {
+        if (currentState == State.Chasing)
+            EnterState(State.Dashing);
+    }
+
+    // --- COROUTINES ---
+
+    IEnumerator RestCoroutine()
+    {
+        yield return new WaitForSeconds(restDuration);
+        timeSinceLastSeen = Mathf.Infinity;
+        EnterState(PlayerInSight() ? State.Chasing : State.Wandering);
+    }
+
+    IEnumerator StunCoroutine()
+    {
+        yield return new WaitForSeconds(stunDuration);
+        EnterState(State.Chasing);
+    }
+
+    // --- NAVIGATION & SENSES ---
+
+    void GoToRandomPoint()
+    {
+        Vector3 randomDir = Random.insideUnitSphere * wanderRadius + transform.position;
+        if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, wanderRadius, NavMesh.AllAreas))
+            agent.SetDestination(hit.position);
+    }
+
+    bool PlayerInSight()
+    {
+        float dist = Vector3.Distance(transform.position, player.position);
+        if (dist > detectionRange) return false;
+
+        var origin = transform.position + Vector3.up * 1.5f;
+        var target = player.position + Vector3.up * 1.0f;
+
+        if (Physics.Linecast(origin, target, out RaycastHit hit))
+            return hit.transform == player;
+
+        return false;
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (charging)
+        if (collision.collider.CompareTag("Player"))
         {
-            if (collision.transform.CompareTag("Player"))
-            {
-                KillPlayer();
-            }
-            else
-            {
-                StartCoroutine(Stun());
-            }
+            Debug.Log("Collided with Player → Killing");
+            player.gameObject.SetActive(false);
         }
-    }
-
-    System.Collections.IEnumerator Stun()
-    {
-        stunned = true;
-        charging = false;
-        rb.linearVelocity = Vector3.zero;
-        agent.enabled = false;
-
-        // TODO: dodaj animację ogłuszenia
-
-        yield return new WaitForSeconds(stunDuration);
-
-        stunned = false;
-        agent.enabled = true;
-    }
-
-    void KillPlayer()
-    {
-        // TODO: Dodaj animację zabicia
-        Debug.Log("Gracz zginął!");
-
-        player.gameObject.SetActive(false);
+        else if (currentState == State.Dashing)
+        {
+            rb.linearVelocity = Vector3.zero;
+            EnterState(State.Chasing);
+        }
     }
 }
