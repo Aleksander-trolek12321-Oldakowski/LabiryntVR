@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class EnemyAI : MonoBehaviour
 {
@@ -26,6 +27,7 @@ public class EnemyAI : MonoBehaviour
     private float timeSinceLastSeen;
     private Vector3 dashTarget;
     private float dashTimer;
+    public Animator animator;
 
     void Start()
     {
@@ -66,6 +68,7 @@ public class EnemyAI : MonoBehaviour
             case State.Wandering:
                 agent.isStopped = false;
                 GoToRandomPoint();
+                Debug.Log("Wander");
                 break;
 
             case State.Seeking:
@@ -73,6 +76,7 @@ public class EnemyAI : MonoBehaviour
                 {
                     agent.isStopped = false;
                     agent.SetDestination(player.position);
+                    Debug.Log("Seek");
                 }
                 break;
 
@@ -81,6 +85,7 @@ public class EnemyAI : MonoBehaviour
                 Invoke(nameof(StartDash), 2f);
                 agent.isStopped = false;
                 agent.SetDestination(player.position);
+                Debug.Log("Chase");
                 break;
 
             case State.Dashing:
@@ -89,6 +94,7 @@ public class EnemyAI : MonoBehaviour
                 Vector3 dashDirection = (dashTarget - transform.position).normalized;
                 rb.linearVelocity = dashDirection * dashForce;
                 agent.isStopped = true;
+                Debug.Log("Dash");
                 break;
 
             case State.Resting:
@@ -114,6 +120,8 @@ public class EnemyAI : MonoBehaviour
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
             GoToRandomPoint();
 
+            Debug.Log("Wander");
+
         if (PlayerInSight())
             EnterState(State.Chasing);
     }
@@ -123,6 +131,8 @@ public class EnemyAI : MonoBehaviour
         if (!agent.pathPending && agent.remainingDistance < 0.5f)
             EnterState(State.Wandering);
 
+            Debug.Log("Seek");
+
         if (PlayerInSight())
             EnterState(State.Chasing);
     }
@@ -131,6 +141,8 @@ public class EnemyAI : MonoBehaviour
     {
         chaseTimer += Time.deltaTime;
         agent.SetDestination(player.position);
+                  Debug.Log("Chase");
+        animator.SetBool("IsAttacking", true);
 
         if (!PlayerInSight())
             TransitionToWanderIfLost();
@@ -139,6 +151,7 @@ public class EnemyAI : MonoBehaviour
     void UpdateDash()
     {
         dashTimer += Time.deltaTime;
+                  Debug.Log("Dash");
 
         if (dashTimer >= dashDuration)
         {
@@ -150,7 +163,10 @@ public class EnemyAI : MonoBehaviour
     void StartDash()
     {
         if (currentState == State.Chasing)
+        {
+            animator.SetBool("IsAttacking", false);
             EnterState(State.Dashing);
+        }
     }
 
     // --- COROUTINES ---
@@ -196,6 +212,7 @@ public class EnemyAI : MonoBehaviour
         if (collision.collider.CompareTag("Player"))
         {
             Debug.Log("Collided with Player → Killing");
+            SceneManager.LoadScene("MenuScene");
             player.gameObject.SetActive(false);
         }
         else if (currentState == State.Dashing)

@@ -732,10 +732,18 @@ PrefabInstance:
       propertyPath: m_Interpolate
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 7097617693199268988, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: e5c28ddba4e053f44a6eb615c245ed5b, type: 2}
     - target: {fileID: 8863117522668315135, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
       propertyPath: player
       value: 
       objectReference: {fileID: 1240759261}
+    - target: {fileID: 8863117522668315135, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
+      propertyPath: animator
+      value: 
+      objectReference: {fileID: 1681440219}
     - target: {fileID: 8863117522668315135, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
       propertyPath: dashForce
       value: 60
@@ -758,7 +766,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8863117522668315135, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
       propertyPath: seekAfterSeconds
-      value: 2
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 8863117522668315135, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
       propertyPath: detectionLayers.m_Bits
@@ -1011,7 +1019,7 @@ Transform:
   m_GameObject: {fileID: 1240759257}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -25.1, y: 1.68, z: 104.5}
+  m_LocalPosition: {x: -25.1, y: 3.18, z: 104.5}
   m_LocalScale: {x: 4.9775, y: 4.9775, z: 4.9775}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1304,6 +1312,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!95 &1681440219 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 7097617693199268988, guid: cb11f558b7990f94a835da06ac05b41f, type: 3}
+  m_PrefabInstance: {fileID: 441902034}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1743963977
 GameObject:
   m_ObjectHideFlags: 0
